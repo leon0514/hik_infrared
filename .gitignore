@@ -1,0 +1,4 @@
+build/
+objs/
+workspace/*
+!workspace/config.json
