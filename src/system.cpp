@@ -11,6 +11,30 @@ static const std::string ALGM_IP = getenv("ALGM_IP") ? getenv("ALGM_IP") : "192.
 
 static httplib::Client cli(SERVER_IP, SERVER_PORT);
 
+/**
+ * @brief 从 JSON 对象中安全地获取一个值。
+ * 
+ * 这个函数可以同时处理 "键不存在" 和 "键存在但值为 null" 的情况。
+ * @tparam T 期望获取的值的类型 (例如 std::string, int)。
+ * @param j The nlohmann::json object to read from.
+ * @param key 要查找的键。
+ * @param default_value 如果键不存在或其值为 null，则返回此默认值。
+ * @return 获取到的值或默认值。
+ */
+template <typename T>
+T get_value_or_default(const json& j, const std::string& key, const T& default_value) {
+    // 1. 检查键是否存在
+    if (!j.contains(key)) {
+        return default_value;
+    }
+    // 2. 检查键对应的值是否为 null
+    if (j.at(key).is_null()) {
+        return default_value;
+    }
+    // 3. 如果键存在且值不为 null，则返回值
+    return j.at(key).get<T>();
+}
+
 std::optional<json> post_json_data(const std::string& path, const json& request_data) {
     try {
         cli.set_connection_timeout(5, 0); // 5秒连接超时
@@ -83,25 +107,25 @@ std::optional<std::vector<AiTaskVo>> get_task_list(const json& filters) {
             AiTaskVo task;
             
             // 使用 .value() 安全地获取每个字段的值，如果字段不存在则使用默认值
-            task.fwqCode = task_json.value("fwqCode", "");
-            task.id = task_json.value("id", 0);
-            task.alarmTaskName = task_json.value("alarmTaskName", "");
-            task.deviceId = task_json.value("deviceId", 0);
-            task.deviceName = task_json.value("deviceName", "");
-            task.deviceIp = task_json.value("deviceIp", "");
-            task.deviceAlgorithmIp = task_json.value("deviceAlgorithmIp", "");
-            task.cameraType = task_json.value("cameraType", "");
-            task.deviceChannel = task_json.value("deviceChannel", "");
-            task.videoName = task_json.value("videoName", "");
-            task.videoPassword = task_json.value("videoPassword", "");
-            task.algorithmCode = task_json.value("algorithmCode", "");
-            task.algorithmName = task_json.value("algorithmName", "");
-            task.beforeDrawPhoto = task_json.value("beforeDrawPhoto", "");
-            task.electricFence = task_json.value("electricFence", "");
-            task.playbackAddress = task_json.value("playbackAddress", "");
-            task.deviceCode = task_json.value("deviceCode", "");
-            task.sleepJudgeTime = task_json.value("sleepJudgeTime", 0);
-            task.personLimitNum = task_json.value("personLimitNum", 0);
+            task.fwqCode = get_value_or_default<std::string>(task_json, "fwqCode", "");
+            task.id = get_value_or_default<int>(task_json, "id", 0);
+            task.alarmTaskName = get_value_or_default<std::string>(task_json, "alarmTaskName", "");
+            task.deviceId = get_value_or_default<int>(task_json, "deviceId", 0);
+            task.deviceName = get_value_or_default<std::string>(task_json, "deviceName", "");
+            task.deviceIp = get_value_or_default<std::string>(task_json, "deviceIp", "");
+            task.deviceAlgorithmIp = get_value_or_default<std::string>(task_json, "deviceAlgorithmIp", "");
+            task.cameraType = get_value_or_default<std::string>(task_json, "cameraType", "");
+            task.deviceChannel = get_value_or_default<std::string>(task_json, "deviceChannel", "");
+            task.videoName = get_value_or_default<std::string>(task_json, "videoName", "");
+            task.videoPassword = get_value_or_default<std::string>(task_json, "videoPassword", "");
+            task.algorithmCode = get_value_or_default<std::string>(task_json, "algorithmCode", "");
+            task.algorithmName = get_value_or_default<std::string>(task_json, "algorithmName", "");
+            task.beforeDrawPhoto = get_value_or_default<std::string>(task_json, "beforeDrawPhoto", "");
+            task.electricFence = get_value_or_default<std::string>(task_json, "electricFence", "");
+            task.playbackAddress = get_value_or_default<std::string>(task_json, "playbackAddress", "");
+            task.deviceCode = get_value_or_default<std::string>(task_json, "deviceCode", "");
+            task.sleepJudgeTime = get_value_or_default<int>(task_json, "sleepJudgeTime", 0);
+            task.personLimitNum = get_value_or_default<int>(task_json, "personLimitNum", 0);
             
             tasks.push_back(task);
         }
@@ -149,7 +173,6 @@ void upload_image_to_server(const std::string& filename, const std::string& imag
     httplib::UploadFormDataItems items = {
         // 文件部分
         { "file", imageData, filename, "image/jpeg" },
-        // 其他元数据
         { "channel", std::to_string(channelId), "", "" },
         { "classIndex", std::to_string(CLASS_INDEX), "", "" },
         { "ip", ALGM_IP, "", "" },
