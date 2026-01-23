@@ -23,7 +23,7 @@ set(HIK_LIBRARY_DIR ${HIK_SDK_ROOT}/hik_libs)
 # 1. 模块和可执行文件共用的源文件 (例如，核心逻辑)
 set(COMMON_SOURCES
     src/HikvisionCamera.cpp
-    src/upload.cpp
+    src/system.cpp
 )
 
 # 2. Python 绑定接口文件

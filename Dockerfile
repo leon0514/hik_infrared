@@ -54,7 +54,6 @@ COPY --from=builder /app/build/exec_infrared ./
 
 # 2. 拷贝海康 SDK 的运行时库
 COPY --from=builder /opt/hikvision/hik_libs /opt/hikvision/hik_libs
-COPY ./workspace/config.json ./
 # 3. 配置动态链接器，让系统能找到海康的 .so 文件
 RUN echo /opt/hikvision/hik_libs > /etc/ld.so.conf.d/hikvision.conf && ldconfig
 

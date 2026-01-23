@@ -1,8 +1,9 @@
 #include "HikvisionCamera.h"
-#include "upload.hpp"
+#include "system.hpp"
 #include <cstring>
 #include <fstream>
 #include <stdexcept>
+#include <unordered_map>
 
 // 时间解析宏定义
 #define GET_YEAR(_time_) (((_time_) >> 26) + 2000)
@@ -12,6 +13,8 @@
 #define GET_MINUTE(_time_) (((_time_) >> 6) & 63)
 #define GET_SECOND(_time_) (((_time_) >> 0) & 63)
 
+
+static std::unordered_map<std::string, int> ip_channel = {};
 
 HikvisionCamera::HikvisionCamera(const std::string& ip, WORD port, const std::string& user, const std::string& password)
     : m_ip(ip), m_port(port), m_user(user), m_password(password), pool_(1) {
@@ -120,22 +123,7 @@ void HikvisionCamera::handleAlarm(LONG lCommand, NET_DVR_ALARMER *pAlarmer, char
                    struFireDetection.struDevInfo.struDevIP.sIpV4,
                    struFireDetection.wFireMaxTemperature,
                    struFireDetection.wTargetDistance);
-
-            // 解析绝对时间
-            // NET_DVR_TIME struAbsTime = {0};
-            // struAbsTime.dwYear = GET_YEAR(struFireDetection.dwAbsTime);
-            // struAbsTime.dwMonth = GET_MONTH(struFireDetection.dwAbsTime);
-            // struAbsTime.dwDay = GET_DAY(struFireDetection.dwAbsTime);
-            // struAbsTime.dwHour = GET_HOUR(struFireDetection.dwAbsTime);
-            // struAbsTime.dwMinute = GET_MINUTE(struFireDetection.dwAbsTime);
-            // struAbsTime.dwSecond = GET_SECOND(struFireDetection.dwAbsTime);
-
-            // const std::string timeStr = std::to_string(struAbsTime.dwYear) + "-" +
-            //                             std::to_string(struAbsTime.dwMonth) + "-" +
-            //                             std::to_string(struAbsTime.dwDay) + " " +
-            //                             std::to_string(struAbsTime.dwHour) + ":" +
-            //                             std::to_string(struAbsTime.dwMinute) + ":" +
-            //                             std::to_string(struAbsTime.dwSecond);
+                   
             // 获取当前时间
             auto t = std::time(nullptr);
             auto tm = *std::localtime(&t);
@@ -144,67 +132,33 @@ void HikvisionCamera::handleAlarm(LONG lCommand, NET_DVR_ALARMER *pAlarmer, char
             std::string timeStr(timeBuffer);
             printf("Alarm Time: %s\n", timeStr.c_str());
             
-            // 保存红外图像和可见光图像
-            // if (struFireDetection.dwPicDataLen > 0 && struFireDetection.pBuffer != NULL) {
-            //     char cFilename[256] = {0};
-            //     sprintf(cFilename, "FirePic_%s_%4.4d%2.2d%2.2d_%2.2d%2.2d%2.2d.jpg",
-            //             struFireDetection.struDevInfo.struDevIP.sIpV4,
-            //             struAbsTime.dwYear, struAbsTime.dwMonth, struAbsTime.dwDay,
-            //             struAbsTime.dwHour, struAbsTime.dwMinute, struAbsTime.dwSecond);
-
-            //     FILE *fp = fopen(cFilename, "wb");
-            //     if (fp != NULL) {
-            //         fwrite(struFireDetection.pBuffer, 1, struFireDetection.dwPicDataLen, fp);
-            //         fclose(fp);
-            //         printf("Image saved: %s\n", cFilename);
-            //     } else {
-            //         fprintf(stderr, "Failed to create file: %s\n", cFilename);
-            //     }
-            // }
-            // if (struFireDetection.dwVisiblePicLen > 0 && struFireDetection.pVisiblePicBuf != NULL)
-            // {
-            //     char cVisFilename[256] = {0};
-            //     sprintf(cVisFilename, "VisibleFirePic_%s_%4.4d%2.2d%2.2d_%2.2d%2.2d%2.2d.jpg",
-            //             struFireDetection.struDevInfo.struDevIP.sIpV4,
-            //             struAbsTime.dwYear, struAbsTime.dwMonth, struAbsTime.dwDay,
-            //             struAbsTime.dwHour, struAbsTime.dwMinute, struAbsTime.dwSecond);
-
-            //     FILE *fpVis = fopen(cVisFilename, "wb");
-            //     if (fpVis != NULL) {
-            //         fwrite(struFireDetection.pVisiblePicBuf, 1, struFireDetection.dwVisiblePicLen, fpVis);
-            //         fclose(fpVis);
-            //         printf("Visible Fire image saved: %s\n", cVisFilename);
-            //         pool_.submitTask(uploadImageToServer, std::string(cVisFilename), struFireDetection.struDevInfo.byChannel, 1,
-            //                          std::string(struFireDetection.struDevInfo.struDevIP.sIpV4), timeStr);
-            //     } else {
-            //         fprintf(stderr, "Failed to create file: %s\n", cVisFilename);
-            //     }
-            // }
             // 将可见光图片直接上传到系统服务器
             if (struFireDetection.dwVisiblePicLen > 0 && struFireDetection.pVisiblePicBuf != NULL)
             {
                 char cVisFilename[256] = {0};
-                sprintf(cVisFilename, "VisibleFirePic_%s_%4.4d%2.2d%2.2d_%2.2d%2.2d%2.2d.jpg",
+                sprintf(cVisFilename, "VisibleFirePic_%s_%s.jpg",
                         struFireDetection.struDevInfo.struDevIP.sIpV4,
-                        struAbsTime.dwYear, struAbsTime.dwMonth, struAbsTime.dwDay,
-                        struAbsTime.dwHour, struAbsTime.dwMinute, struAbsTime.dwSecond);
+                        timeStr.c_str());
 
                 std::string imageData(reinterpret_cast<const char*>(struFireDetection.pVisiblePicBuf),
                                       static_cast<size_t>(struFireDetection.dwVisiblePicLen));
                 std::string ipAddr = std::string(struFireDetection.struDevInfo.struDevIP.sIpV4);
                 int channelId = -1;
-                for (const auto& item : config_) {
-                    if (item.contains("IP") && item["IP"] == ipAddr && item.contains("channel")) {
-                        channelId = item["channel"];
-                        break;
-                    }
+                if (ip_channel.find(ipAddr) != ip_channel.end()) {
+                    channelId = ip_channel[ipAddr];
+                }
+                else
+                {
+                    channelId = get_channel_by_ip(
+                        ipAddr);
+                    ip_channel[ipAddr] = channelId;
                 }
                 if (channelId == -1) {
                     std::cerr << "No channelId found for IP: " << ipAddr << std::endl;
                     break;;
                 }
                 std::cout << "Uploading image for IP: " << ipAddr << ", Channel: " << channelId << std::endl;
-                pool_.submitTask(uploadImageToServer, 
+                pool_.submitTask(upload_image_to_server, 
                                  std::string(cVisFilename), 
                                  imageData, 
                                  channelId,
