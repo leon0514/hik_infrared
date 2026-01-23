@@ -119,7 +119,7 @@ void HikvisionCamera::handleAlarm(LONG lCommand, NET_DVR_ALARMER *pAlarmer, char
             memcpy(&struFireDetection, pAlarmInfo, sizeof(NET_DVR_FIREDETECTION_ALARM));
 
             // 打印报警信息
-            printf("Fire Detection Alarm from %s: MaxTemp:%llu, Distance:%llu\n",
+            printf("Fire Detection Alarm from %s: MaxTemp:%u, Distance:%u\n",
                    struFireDetection.struDevInfo.struDevIP.sIpV4,
                    struFireDetection.wFireMaxTemperature,
                    struFireDetection.wTargetDistance);
