@@ -118,6 +118,21 @@ void HikvisionCamera::handleAlarm(LONG lCommand, NET_DVR_ALARMER *pAlarmer, char
             NET_DVR_FIREDETECTION_ALARM struFireDetection = {0};
             memcpy(&struFireDetection, pAlarmInfo, sizeof(NET_DVR_FIREDETECTION_ALARM));
 
+            // 报警子类型：0- 火点检测报警，1- 烟雾检测报警，2- 烟火报警
+            unsigned char alarm_sub_type = struFireDetection.byAlarmSubType;
+            if (alarm_sub_type == 0) {
+                printf("Alarm Subtype: Fire Point Detection\n");
+            } else if (alarm_sub_type == 1) {
+                printf("Alarm Subtype: Smoke Detection\n");
+                return; // 只处理火点检测报警，烟雾检测报警不上传图片
+            } else if (alarm_sub_type == 2) {
+                printf("Alarm Subtype: Fire and Smoke Detection\n");
+                return; // 只处理火点检测报警，烟雾检测报警不上传图片
+            } else {
+                printf("Alarm Subtype: Unknown (%u)\n", alarm_sub_type);
+                return; // 未知报警类型，不上传图片
+            }
+
             // 打印报警信息
             printf("Fire Detection Alarm from %s: MaxTemp:%u, Distance:%u\n",
                    struFireDetection.struDevInfo.struDevIP.sIpV4,

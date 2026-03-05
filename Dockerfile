@@ -51,7 +51,7 @@ RUN pip install --no-cache-dir fastapi uvicorn
 
 # 1. 从 builder 阶段拷贝编译好的 Python 模块 (.so 文件)
 COPY --from=builder /app/build/exec_infrared ./
-
+COPY --from=builder /app/build/exec_test_system ./    
 # 2. 拷贝海康 SDK 的运行时库
 COPY --from=builder /opt/hikvision/hik_libs /opt/hikvision/hik_libs
 # 3. 配置动态链接器，让系统能找到海康的 .so 文件
